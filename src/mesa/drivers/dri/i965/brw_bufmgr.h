@@ -128,6 +128,11 @@ struct brw_bo {
     * Boolean of whether this buffer is cache coherent
     */
    bool cache_coherent;
+
+   /**
+     * Boolean to check whether bo is available in exec buffer objects list
+     */
+   bool bo_available;
 };
 
 #define BO_ALLOC_FOR_RENDER (1<<0)
