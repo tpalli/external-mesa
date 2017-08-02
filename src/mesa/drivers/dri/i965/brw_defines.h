@@ -1680,3 +1680,7 @@ enum brw_pixel_shader_coverage_mask_mode {
 # define GEN8_L3CNTLREG_ALL_ALLOC_MASK     INTEL_MASK(31, 25)
 
 #endif
+
+/* Checking the state of mesa and brw before emitting atoms */
+#define CHECK_BRW_STATE(a,b) ((a.mesa & b.mesa) | (a.brw & b.brw))
+
