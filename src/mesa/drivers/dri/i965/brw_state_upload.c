@@ -193,12 +193,6 @@ void brw_destroy_state( struct brw_context *brw )
 /***********************************************************************
  */
 
-static bool
-check_state(const struct brw_state_flags *a, const struct brw_state_flags *b)
-{
-   return ((a->mesa & b->mesa) | (a->brw & b->brw)) != 0;
-}
-
 static void accumulate_state( struct brw_state_flags *a,
 			      const struct brw_state_flags *b )
 {
@@ -418,10 +412,8 @@ check_and_emit_atom(struct brw_context *brw,
                     struct brw_state_flags *state,
                     const struct brw_tracked_state *atom)
 {
-   if (check_state(state, &atom->dirty)) {
-      atom->emit(brw);
-      merge_ctx_state(brw, state);
-   }
+   atom->emit(brw);
+   merge_ctx_state(brw, state);
 }
 
 static inline void
@@ -515,7 +507,10 @@ brw_upload_pipeline_state(struct brw_context *brw,
 	 const struct brw_tracked_state *atom = &atoms[i];
 	 struct brw_state_flags generated;
 
-         check_and_emit_atom(brw, &state, atom);
+         /* Checking the state and emitting atoms */
+         if (CHECK_BRW_STATE(state, atom->dirty)) {
+            check_and_emit_atom(brw, &state, atom);
+         }
 
 	 accumulate_state(&examined, &atom->dirty);
 
@@ -524,7 +519,7 @@ brw_upload_pipeline_state(struct brw_context *brw,
 	  *     fail;
 	  */
 	 xor_states(&generated, &prev, &state);
-	 assert(!check_state(&examined, &generated));
+	 assert(!CHECK_BRW_STATE(examined, generated));
 	 prev = state;
       }
    }
@@ -532,7 +527,10 @@ brw_upload_pipeline_state(struct brw_context *brw,
       for (i = 0; i < num_atoms; i++) {
 	 const struct brw_tracked_state *atom = &atoms[i];
 
-         check_and_emit_atom(brw, &state, atom);
+         /* Checking the state and emitting atoms */
+         if (CHECK_BRW_STATE(state, atom->dirty)) {
+            check_and_emit_atom(brw, &state, atom);
+         }
       }
    }
 
