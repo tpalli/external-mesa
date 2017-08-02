@@ -519,10 +519,8 @@ static void
 add_exec_bo(struct intel_batchbuffer *batch, struct brw_bo *bo)
 {
    if (bo != batch->bo) {
-      for (int i = 0; i < batch->exec_count; i++) {
-         if (batch->exec_bos[i] == bo)
-            return;
-      }
+      if(brw_batch_references(batch,bo) == true)
+         return;
 
       brw_bo_reference(bo);
    }
@@ -554,6 +552,12 @@ add_exec_bo(struct intel_batchbuffer *batch, struct brw_bo *bo)
    validation_entry->rsvd2 = 0;
 
    batch->exec_bos[batch->exec_count] = bo;
+
+   /* Marking the current bo as true since this
+    * is added to the exec_bos list
+    */
+   bo->bo_available = true;
+
    batch->exec_count++;
    batch->aperture_space += bo->size;
 }
@@ -597,6 +601,12 @@ execbuffer(int fd,
       struct brw_bo *bo = batch->exec_bos[i];
 
       bo->idle = false;
+
+      /* Marking the flags as false for all the bo's
+       * in the list to ensure it is added in the next
+       * list of exec buffers
+       */
+      bo->bo_available = false;
 
       /* Update brw_bo::offset64 */
       if (batch->exec_objects[i].offset != bo->offset64) {
@@ -742,11 +752,7 @@ brw_batch_has_aperture_space(struct brw_context *brw, unsigned extra_space)
 bool
 brw_batch_references(struct intel_batchbuffer *batch, struct brw_bo *bo)
 {
-   for (int i = 0; i < batch->exec_count; i++) {
-      if (batch->exec_bos[i] == bo)
-         return true;
-   }
-   return false;
+   return (bo->bo_available) ? true : false;
 }
 
 /*  This is the only way buffers get added to the validate list.
