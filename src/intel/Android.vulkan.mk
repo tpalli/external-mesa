@@ -194,11 +194,13 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 intermediates := $(call local-generated-sources-dir)
 
-LOCAL_SRC_FILES := $(VULKAN_FILES)
+LOCAL_SRC_FILES := $(VULKAN_FILES) $(VULKAN_WSI_ANDROID_FILES)
 
 LOCAL_C_INCLUDES := \
 	$(ANV_INCLUDES) \
 	$(MESA_TOP)/src/compiler
+
+LOCAL_CFLAGS += -isystem frameworks/native/vulkan/include
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_anv_entrypoints \

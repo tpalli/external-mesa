@@ -360,6 +360,30 @@ def main():
                         'VkImage* pImage', len(entrypoints),
                         cal_hash('vkCreateDmaBufImageINTEL'), None))
 
+    # Insert Android specific entrypoints
+    entrypoints.append(('VkResult', 'GetSwapchainGrallocUsageANDROID',
+                        'VkDevice device, ' +
+                        'VkFormat fmt, ' +
+                        'VkImageUsageFlags usage, ' +
+                        'int *grallocUsage', len(entrypoints),
+                        cal_hash('vkGetSwapchainGrallocUsageANDROID'), None))
+
+    entrypoints.append(('VkResult', 'AcquireImageANDROID',
+                        'VkDevice device, ' +
+                        'VkImage image, ' +
+                        'int nativeFenceFd, ' +
+                        'VkSemaphore semaphore, ' +
+                        'VkFence fence', len(entrypoints),
+                        cal_hash('vkAcquireImageANDROID'), None))
+
+    entrypoints.append(('VkResult', 'QueueSignalReleaseImageANDROID',
+                        'VkQueue queue, ' +
+                        'uint32_t waitSemaphoreCount, ' +
+                        'const VkSemaphore* pWaitSemaphores, ' +
+                        'VkImage image, ' +
+                        'int *pNativeFenceFd', len(entrypoints),
+                        cal_hash('vkQueueSignalReleaseImageANDROID'), None))
+
     # For outputting entrypoints.h we generate a anv_EntryPoint() prototype
     # per entry point.
     with open(os.path.join(args.outdir, 'anv_entrypoints.h'), 'wb') as f:

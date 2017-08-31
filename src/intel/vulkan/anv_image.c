@@ -30,8 +30,13 @@
 
 #include "anv_private.h"
 #include "util/debug.h"
+#include "vulkan/util/vk_util.h"
 
 #include "vk_format_info.h"
+
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#include <vulkan/vk_android_native_buffer.h>
+#endif
 
 /**
  * Exactly one bit must be set in \a aspect.
@@ -338,6 +343,61 @@ make_surface(const struct anv_device *dev,
    return VK_SUCCESS;
 }
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+static int
+anv_ioctl(int fd, unsigned long request, void *arg)
+{
+   int ret;
+
+   do {
+      ret = ioctl(fd, request, arg);
+   } while (ret == -1 && (errno == EINTR || errno == EAGAIN));
+
+   return ret;
+}
+
+static VkResult
+android_anv_image_create(VkDevice _device,
+                         const VkAllocationCallbacks* alloc,
+                         const VkImageCreateInfo *pCreateInfo,
+                         const VkNativeBufferANDROID* buffer,
+                         VkImage *pImage)
+{
+   struct anv_device *device = anv_device_from_handle(_device);
+   const native_handle_t* handle = (const native_handle_t*) (buffer->handle);
+
+   struct drm_i915_gem_get_tiling get_tiling = {
+      .handle = anv_gem_fd_to_handle(device, handle->data[0]),
+   };
+
+   if (anv_ioctl(device->fd, DRM_IOCTL_I915_GEM_GET_TILING,
+       &get_tiling))
+      return VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR;
+
+   uint32_t stride = buffer->stride;
+
+   if (get_tiling.tiling_mode == I915_TILING_X)
+      stride *= 4;
+
+   VkDeviceMemory pMem;
+   VkDmaBufImageCreateInfo dmabufInfo = {
+      .sType = VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL,
+      .pNext = NULL,
+      .fd = handle->data[0],
+      .format = pCreateInfo->format,
+      .extent = {
+         .width = pCreateInfo->extent.width,
+         .height = pCreateInfo->extent.height,
+         .depth = pCreateInfo->extent.depth,
+      },
+      .strideInBytes = stride,
+   };
+
+   return anv_CreateDmaBufImageINTEL(_device, &dmabufInfo, alloc, &pMem,
+                                     pImage);
+}
+#endif
+
 VkResult
 anv_image_create(VkDevice _device,
                  const struct anv_image_create_info *create_info,
@@ -357,6 +417,15 @@ anv_image_create(VkDevice _device,
    anv_assert(pCreateInfo->extent.width > 0);
    anv_assert(pCreateInfo->extent.height > 0);
    anv_assert(pCreateInfo->extent.depth > 0);
+
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+   vk_foreach_struct(image_ext, pCreateInfo->pNext) {
+      if (image_ext->sType == VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID)
+         return android_anv_image_create(_device, alloc, pCreateInfo,
+                                         (const VkNativeBufferANDROID *)
+                                         image_ext, pImage);
+   }
+#endif
 
    image = vk_zalloc2(&device->alloc, alloc, sizeof(*image), 8,
                        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
