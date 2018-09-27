@@ -2696,6 +2696,11 @@ struct anv_image {
     */
    bool disjoint;
 
+   /* All the formats that can be used when creating views of this image
+    * are CCS_E compatible.
+    */
+   bool ccs_e_compatible;
+
    /**
     * Image subsurfaces
     *
