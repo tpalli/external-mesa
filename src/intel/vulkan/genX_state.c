@@ -337,8 +337,11 @@ VkResult genX(CreateSampler)(
          if (conversion == NULL)
             break;
 
-         sampler->n_planes = conversion->format->n_planes;
-         sampler->conversion = conversion;
+         /* Setup conversion only if format is YUV format. */
+         if (conversion && conversion->format->can_ycbcr) {
+            sampler->n_planes = conversion->format->n_planes;
+            sampler->conversion = conversion;
+         }
          break;
       }
 #if GEN_GEN >= 9
