@@ -1170,6 +1170,15 @@ VkResult anv_CreateSamplerYcbcrConversion(
    ANV_FROM_HANDLE(anv_device, device, _device);
    struct anv_ycbcr_conversion *conversion;
 
+   /* Search for VkExternalFormatANDROID and resolve the format. */
+   struct anv_format *ext_format = NULL;
+   const struct VkExternalFormatANDROID *ext_info =
+      vk_find_struct_const(pCreateInfo->pNext, EXTERNAL_FORMAT_ANDROID);
+
+   uint64_t format = ext_info ? ext_info->externalFormat : 0;
+   if (format)
+      ext_format = (struct anv_format *) (uintptr_t) format;
+
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO);
 
    conversion = vk_alloc2(&device->alloc, pAllocator, sizeof(*conversion), 8,
@@ -1189,6 +1198,10 @@ VkResult anv_CreateSamplerYcbcrConversion(
    conversion->chroma_offsets[0] = pCreateInfo->xChromaOffset;
    conversion->chroma_offsets[1] = pCreateInfo->yChromaOffset;
    conversion->chroma_filter = pCreateInfo->chromaFilter;
+
+   /* Setup external format. */
+   if (ext_format)
+      conversion->format = ext_format;
 
    bool has_chroma_subsampled = false;
    for (uint32_t p = 0; p < conversion->format->n_planes; p++) {
