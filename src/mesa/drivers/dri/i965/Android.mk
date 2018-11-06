@@ -327,6 +327,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_blorp \
 	libmesa_intel_compiler
 
+LOCAL_CFLAGS += -Wno-error
 ifeq ($(ARCH_X86_HAVE_SSE4_1),true)
 LOCAL_CFLAGS += \
 	-DUSE_SSE41
