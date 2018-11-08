@@ -2768,7 +2768,7 @@ void anv_GetImageMemoryRequirements2(
       switch (ext->sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
          VkMemoryDedicatedRequirements *requirements = (void *)ext;
-         if (image->needs_set_tiling) {
+         if (image->needs_set_tiling || image->external_format) {
             /* If we need to set the tiling for external consumers, we need a
              * dedicated allocation.
              *
