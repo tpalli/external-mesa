@@ -161,10 +161,11 @@ get_ahw_buffer_format_properties(
    p->samplerYcbcrConversionComponents.b = VK_COMPONENT_SWIZZLE_IDENTITY;
    p->samplerYcbcrConversionComponents.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-   p->suggestedYcbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY;
+   p->suggestedYcbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601;
    p->suggestedYcbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
-   p->suggestedXChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN;
-   p->suggestedYChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN;
+
+   p->suggestedXChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
+   p->suggestedYChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
 
    return VK_SUCCESS;
 }

@@ -41,7 +41,8 @@ VULKAN_COMMON_INCLUDES := \
 	frameworks/native/vulkan/include \
 	frameworks/native/libs/nativebase/include \
 	frameworks/native/libs/nativewindow/include \
-	frameworks/native/libs/arect/include
+	frameworks/native/libs/arect/include \
+        external/minigbm/cros_gralloc
 
 # libmesa_anv_entrypoints with header and dummy.c
 #
