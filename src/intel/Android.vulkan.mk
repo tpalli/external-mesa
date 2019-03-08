@@ -88,7 +88,7 @@ $(intermediates)/vulkan/anv_entrypoints.h: $(intermediates)/vulkan/dummy.c \
 LOCAL_EXPORT_C_INCLUDE_DIRS := \
         $(intermediates)
 
-LOCAL_SHARED_LIBRARIES := libdrm
+LOCAL_SHARED_LIBRARIES := libdrm_pri
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -100,7 +100,7 @@ ANV_INCLUDES := \
 	$(call generated-sources-dir-for,STATIC_LIBRARIES,libmesa_vulkan_common,,)/vulkan \
 	$(call generated-sources-dir-for,STATIC_LIBRARIES,libmesa_vulkan_util,,)/util
 
-ANV_SHARED_LIBRARIES := libdrm
+ANV_SHARED_LIBRARIES := libdrm_pri
 
 ifeq ($(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5 6 7),)
 ANV_SHARED_LIBRARIES += libnativewindow
