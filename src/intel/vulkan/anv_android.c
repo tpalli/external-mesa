@@ -22,6 +22,9 @@
  */
 
 #include <hardware/gralloc.h>
+#ifdef HAVE_GRALLOC1
+#include <hardware/gralloc1.h>
+#endif
 #include <hardware/hardware.h>
 #include <hardware/hwvulkan.h>
 #include <vulkan/vk_android_native_buffer.h>
@@ -549,6 +552,104 @@ anv_image_from_gralloc(VkDevice device_h,
    return result;
 }
 
+VkResult
+format_supported_with_usage(VkDevice device_h, VkFormat format,
+                            VkImageUsageFlags imageUsage)
+{
+   ANV_FROM_HANDLE(anv_device, device, device_h);
+   struct anv_physical_device *phys_dev = &device->instance->physicalDevice;
+   VkPhysicalDevice phys_dev_h = anv_physical_device_to_handle(phys_dev);
+   VkResult result;
+
+   const VkPhysicalDeviceImageFormatInfo2 image_format_info = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+      .format = format,
+      .type = VK_IMAGE_TYPE_2D,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = imageUsage,
+   };
+
+   VkImageFormatProperties2 image_format_props = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+   };
+
+   /* Check that requested format and usage are supported. */
+   result = anv_GetPhysicalDeviceImageFormatProperties2(phys_dev_h,
+               &image_format_info, &image_format_props);
+   if (result != VK_SUCCESS) {
+      return vk_errorf(device->instance, device, result,
+                       "anv_GetPhysicalDeviceImageFormatProperties2 failed "
+                       "inside %s", __func__);
+   }
+   return VK_SUCCESS;
+}
+
+#ifdef HAVE_GRALLOC1
+VkResult anv_GetSwapchainGrallocUsage2ANDROID(
+    VkDevice            device_h,
+    VkFormat            format,
+    VkImageUsageFlags   imageUsage,
+    VkSwapchainImageUsageFlagsANDROID swapchainImageUsage,
+    uint64_t*           grallocConsumerUsage,
+    uint64_t*           grallocProducerUsage)
+{
+   ANV_FROM_HANDLE(anv_device, device, device_h);
+   VkResult result;
+
+   *grallocConsumerUsage = 0;
+   *grallocProducerUsage = 0;
+   intel_logd("%s: format=%d, usage=0x%x", __func__, format, imageUsage);
+
+   result = format_supported_with_usage(device_h, format, imageUsage);
+   if (result != VK_SUCCESS)
+      return result;
+
+   if (unmask32(&imageUsage, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+      *grallocProducerUsage |= GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
+
+   if (unmask32(&imageUsage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                             VK_IMAGE_USAGE_SAMPLED_BIT |
+                             VK_IMAGE_USAGE_STORAGE_BIT |
+                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
+      *grallocConsumerUsage |= GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
+
+   /* All VkImageUsageFlags not explicitly checked here are unsupported for
+    * gralloc swapchains.
+    */
+   if (imageUsage != 0) {
+      return vk_errorf(device->instance, device, VK_ERROR_FORMAT_NOT_SUPPORTED,
+                       "unsupported VkImageUsageFlags(0x%x) for gralloc "
+                       "swapchain", imageUsage);
+   }
+
+   /* The below formats support GRALLOC_USAGE_HW_FB (that is, display
+    * scanout). This short list of formats is univserally supported on Intel
+    * but is incomplete.  The full set of supported formats is dependent on
+    * kernel and hardware.
+    *
+    * FINISHME: Advertise all display-supported formats.
+    */
+   switch (format) {
+      case VK_FORMAT_B8G8R8A8_UNORM:
+      case VK_FORMAT_B5G6R5_UNORM_PACK16:
+      case VK_FORMAT_R8G8B8A8_UNORM:
+      case VK_FORMAT_R8G8B8A8_SRGB: {
+         *grallocConsumerUsage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER;
+         *grallocConsumerUsage |= GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET;
+         break;
+      }
+      default:
+         intel_logw("%s: unsupported format=%d", __func__, format);
+   }
+
+   if (*grallocConsumerUsage == 0)
+      return VK_ERROR_FORMAT_NOT_SUPPORTED;
+
+   return VK_SUCCESS;
+}
+#endif
+
 VkResult anv_GetSwapchainGrallocUsageANDROID(
     VkDevice            device_h,
     VkFormat            format,
@@ -576,26 +677,9 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
     * dEQP-VK.wsi.android.swapchain.*.image_usage to fail.
     */
 
-   const VkPhysicalDeviceImageFormatInfo2 image_format_info = {
-      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-      .format = format,
-      .type = VK_IMAGE_TYPE_2D,
-      .tiling = VK_IMAGE_TILING_OPTIMAL,
-      .usage = imageUsage,
-   };
-
-   VkImageFormatProperties2 image_format_props = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
-   };
-
-   /* Check that requested format and usage are supported. */
-   result = anv_GetPhysicalDeviceImageFormatProperties2(phys_dev_h,
-               &image_format_info, &image_format_props);
-   if (result != VK_SUCCESS) {
-      return vk_errorf(device->instance, device, result,
-                       "anv_GetPhysicalDeviceImageFormatProperties2 failed "
-                       "inside %s", __func__);
-   }
+   result = format_supported_with_usage(device_h, format, imageUsage);
+   if (result != VK_SUCCESS)
+      return result;
 
    if (unmask32(&imageUsage, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
