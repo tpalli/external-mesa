@@ -83,7 +83,6 @@ static const struct {
    int (*predicate)(int fd);
 } driver_map[] = {
    { 0x8086, "i915", i915_chip_ids, ARRAY_SIZE(i915_chip_ids) },
-   { 0x8086, "i965", i965_chip_ids, ARRAY_SIZE(i965_chip_ids) },
    { 0x8086, "iris", iris_chip_ids, ARRAY_SIZE(iris_chip_ids) },
    { 0x1002, "radeon", r100_chip_ids, ARRAY_SIZE(r100_chip_ids) },
    { 0x1002, "r200", r200_chip_ids, ARRAY_SIZE(r200_chip_ids) },
