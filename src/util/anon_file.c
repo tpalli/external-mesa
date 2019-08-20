@@ -36,10 +36,8 @@
 
 #ifdef __FreeBSD__
 #include <sys/mman.h>
-#elif defined(HAVE_MEMFD_CREATE)
-#include <sys/syscall.h>
-#include <linux/memfd.h>
 #else
+#include <linux/memfd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #endif
@@ -93,6 +91,15 @@ create_tmpfile_cloexec(char *tmpname)
 }
 #endif
 
+#ifndef HAVE_MEMFD_CREATE
+#include <sys/syscall.h>
+static inline int
+memfd_create(const char *name, unsigned int flags)
+{
+   return syscall(SYS_memfd_create, name, flags);
+}
+#endif
+
 /*
  * Create a new, unique, anonymous file of the given size, and
  * return the file descriptor for it. The file descriptor is set
@@ -118,10 +125,10 @@ os_create_anonymous_file(off_t size, const char *debug_name)
 #ifdef __FreeBSD__
    (void*)debug_name;
    fd = shm_open(SHM_ANON, O_CREAT | O_RDWR | O_CLOEXEC, 0600);
-#elif defined(HAVE_MEMFD_CREATE)
+#elif defined(HAVE_MEMFD_CREATE) || defined(ANDROID)
    if (!debug_name)
       debug_name = "mesa-shared";
-   fd = syscall(SYS_memfd_create, debug_name, MFD_CLOEXEC);
+   fd = memfd_create(debug_name, MFD_CLOEXEC);
 #else
    const char *path;
    char *name;
