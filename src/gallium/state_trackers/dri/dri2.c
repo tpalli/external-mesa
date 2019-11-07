@@ -1597,8 +1597,17 @@ static int
 dri2_get_capabilities(__DRIscreen *_screen)
 {
    struct dri_screen *screen = dri_screen(_screen);
+   int caps = 0;
 
-   return (screen->can_share_buffer ? __DRI_IMAGE_CAP_GLOBAL_NAMES : 0);
+   if (screen->can_share_buffer)
+      caps |= __DRI_IMAGE_CAP_GLOBAL_NAMES;
+
+   struct pipe_screen *pscreen = screen->base.screen;
+
+   if (pscreen->get_param(pscreen, PIPE_CAP_EXPLICIT_FLUSH))
+      caps |= __DRI_IMAGE_CAP_EXPLICIT_FLUSH;
+
+   return caps;
 }
 
 static void

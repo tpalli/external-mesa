@@ -329,7 +329,6 @@ iris_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
       return 2;
    case PIPE_CAP_PCI_FUNCTION:
       return 0;
-
    default:
       return u_pipe_screen_get_param_defaults(pscreen, param);
    }

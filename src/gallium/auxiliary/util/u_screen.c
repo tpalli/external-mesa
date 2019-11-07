@@ -401,6 +401,9 @@ u_pipe_screen_get_param_defaults(struct pipe_screen *pscreen,
    case PIPE_CAP_CLIP_PLANES:
       return 1;
 
+   case PIPE_CAP_EXPLICIT_FLUSH:
+      return 0;
+
    default:
       unreachable("bad PIPE_CAP_*");
    }

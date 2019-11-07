@@ -1464,6 +1464,7 @@ enum __DRIChromaSiting {
  */
 /*@{*/
 #define __DRI_IMAGE_CAP_GLOBAL_NAMES 1
+#define __DRI_IMAGE_CAP_EXPLICIT_FLUSH 2
 /*@}*/
 
 /**

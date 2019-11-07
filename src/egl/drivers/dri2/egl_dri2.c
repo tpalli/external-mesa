@@ -785,9 +785,9 @@ dri2_setup_screen(_EGLDisplay *disp)
    disp->Extensions.KHR_reusable_sync = EGL_TRUE;
 
    if (dri2_dpy->image) {
+      int capabilities = 0;
       if (dri2_dpy->image->base.version >= 10 &&
           dri2_dpy->image->getCapabilities != NULL) {
-         int capabilities;
 
          capabilities = dri2_dpy->image->getCapabilities(dri2_dpy->dri_screen);
          disp->Extensions.MESA_drm_image = (capabilities & __DRI_IMAGE_CAP_GLOBAL_NAMES) != 0;
@@ -801,7 +801,10 @@ dri2_setup_screen(_EGLDisplay *disp)
       }
 
       disp->Extensions.KHR_image_base = EGL_TRUE;
-      disp->Extensions.EXT_image_flush_external = EGL_TRUE;
+
+      disp->Extensions.EXT_image_flush_external =
+         (capabilities & __DRI_IMAGE_CAP_EXPLICIT_FLUSH) != 0;
+
       disp->Extensions.KHR_gl_renderbuffer_image = EGL_TRUE;
       if (dri2_dpy->image->base.version >= 5 &&
           dri2_dpy->image->createImageFromTexture) {
