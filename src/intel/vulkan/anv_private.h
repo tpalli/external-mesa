@@ -1068,6 +1068,11 @@ struct anv_instance {
 
     struct driOptionCache                       dri_options;
     struct driOptionCache                       available_dri_options;
+
+#ifdef ANDROID
+   const hw_module_t *gralloc;
+   gralloc1_device_t *gralloc1_dev;
+#endif
 };
 
 VkResult anv_init_wsi(struct anv_physical_device *physical_device);

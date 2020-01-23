@@ -103,6 +103,26 @@ anv_hal_close(struct hw_device_t *dev)
    return -1;
 }
 
+bool
+anv_android_init(struct anv_instance *instance)
+{
+   int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
+             (const hw_module_t **) &instance->gralloc);
+
+   hw_device_t *device;
+   ret = instance->gralloc->methods->open(
+      instance->gralloc, GRALLOC_HARDWARE_MODULE_ID, &device);
+
+   if (ret) {
+      intel_logd("%s: could not open gralloc module", __func__);
+      return false;
+   }
+
+   instance->gralloc1_dev = (gralloc1_device_t *) device;
+   intel_logd("%s: gralloc device found", __func__);
+   return true;
+}
+
 #if ANDROID_API_LEVEL >= 26
 static VkResult
 get_ahw_buffer_format_properties(

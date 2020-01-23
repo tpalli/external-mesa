@@ -65,3 +65,9 @@ anv_image_from_external(VkDevice device_h,
 {
    return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
+
+bool
+anv_android_init(struct anv_instance *instance)
+{
+   return false;
+}

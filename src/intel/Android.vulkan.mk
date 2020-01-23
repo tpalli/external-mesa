@@ -57,7 +57,7 @@ ANV_STATIC_LIBRARIES := \
 	libmesa_genxml \
 	libmesa_nir
 
-ANV_SHARED_LIBRARIES := libdrm
+ANV_SHARED_LIBRARIES := libdrm libhardware
 
 ifeq ($(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5 6 7),)
 ANV_SHARED_LIBRARIES += libnativewindow
@@ -328,6 +328,8 @@ else
  LOCAL_SHARED_LIBRARIES += \
         libexpat
 endif
+
+LOCAL_SHARED_LIBRARIES += libhardware
 
 include $(MESA_COMMON_MK)
 include $(BUILD_SHARED_LIBRARY)

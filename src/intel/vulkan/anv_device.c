@@ -776,6 +776,8 @@ VkResult anv_CreateInstance(
 
    *pInstance = anv_instance_to_handle(instance);
 
+   anv_android_init(instance);
+
    return VK_SUCCESS;
 }
 

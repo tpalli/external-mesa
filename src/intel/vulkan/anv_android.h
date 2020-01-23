@@ -24,6 +24,11 @@
 #ifndef ANV_ANDROID_H
 #define ANV_ANDROID_H
 
+#ifdef ANDROID
+#include <hardware/gralloc.h>
+#include <hardware/gralloc1.h>
+#endif
+
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_android.h>
 #include <vulkan/vk_android_native_buffer.h>
@@ -31,6 +36,8 @@
 struct anv_device_memory;
 struct anv_device;
 struct anv_image;
+
+bool anv_android_init(struct anv_instance *instance);
 
 VkResult anv_image_from_gralloc(VkDevice device_h,
                                 const VkImageCreateInfo *base_info,
