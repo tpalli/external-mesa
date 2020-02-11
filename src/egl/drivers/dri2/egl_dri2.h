@@ -328,9 +328,7 @@ struct dri2_egl_surface
 
 #ifdef HAVE_ANDROID_PLATFORM
    struct ANativeWindow *window;
-   struct ANativeWindowBuffer *buffer;
-   __DRIimage *dri_image_back;
-   __DRIimage *dri_image_front;
+   __DRIimage *pbuffer_dri_image;
 
    /* Used to record all the buffers created by ANativeWindow and their ages.
     * Allocate number of color_buffers based on query to android bufferqueue
@@ -339,8 +337,9 @@ struct dri2_egl_surface
    int color_buffers_count;
    struct {
       struct ANativeWindowBuffer *buffer;
+      __DRIimage *dri_image;
       int age;
-   } *color_buffers, *back;
+   } *color_buffers, *back, *current;
 #endif
 
    /* surfaceless and device */
