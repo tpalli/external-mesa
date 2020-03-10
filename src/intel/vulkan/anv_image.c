@@ -340,6 +340,15 @@ add_aux_state_tracking_buffer(struct anv_image *image,
    image->size += state_size;
 }
 
+static bool
+image_can_haz_ccs(struct anv_device *device, struct anv_image *image)
+{
+   if (device->info.gen < 12 && image->usage & VK_IMAGE_USAGE_STORAGE_BIT)
+      return false;
+
+   return true;
+}
+
 /**
  * The return code indicates whether creation of the VkImage should continue
  * or fail, not whether the creation of the aux surface succeeded.  If the aux
@@ -448,7 +457,7 @@ add_aux_surface_if_supported(struct anv_device *device,
          return VK_SUCCESS;
 
       /* Choose aux usage */
-      if (!(image->usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
+      if (image_can_haz_ccs(device, image) &&
           anv_formats_ccs_e_compatible(&device->info,
                                        image->create_flags,
                                        image->vk_format,
