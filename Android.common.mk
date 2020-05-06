@@ -122,7 +122,7 @@ LOCAL_CFLAGS_64 += -DDEFAULT_DRIVER_DIR=\"/vendor/lib64/$(MESA_DRI_MODULE_REL_PA
 LOCAL_PROPRIETARY_MODULE := true
 
 # uncomment to keep the debug symbols
-#LOCAL_STRIP_MODULE := false
+LOCAL_STRIP_MODULE := false
 
 ifeq ($(strip $(LOCAL_MODULE_TAGS)),)
 LOCAL_MODULE_TAGS := optional
