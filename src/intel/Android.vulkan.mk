@@ -49,7 +49,8 @@ VULKAN_COMMON_INCLUDES += \
 
 VULKAN_COMMON_HEADER_LIBRARIES := \
 	libcutils_headers \
-	libhardware_headers
+	libhardware_headers \
+	liblog_headers
 endif
 
 ANV_STATIC_LIBRARIES := \
@@ -229,6 +230,8 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_EXPORT_C_INCLUDE_DIRS) \
 	$(VULKAN_COMMON_INCLUDES)
 
+LOCAL_SHARED_LIBRARIES += liblog
+
 LOCAL_STATIC_LIBRARIES := \
 	libmesa_nir \
 	libmesa_genxml \
@@ -295,6 +298,8 @@ LOCAL_SRC_FILES := \
 
 LOCAL_C_INCLUDES := \
 	$(VULKAN_COMMON_INCLUDES) \
+
+LOCAL_SHARED_LIBRARIES += liblog
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_nir \

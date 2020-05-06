@@ -103,7 +103,7 @@ CHIPSET(0x22B1, chv,     "BSW",     "Intel(R) HD Graphics XXX") /* Overridden in
 CHIPSET(0x22B2, chv,     "CHV",     "Intel(R) HD Graphics")
 CHIPSET(0x22B3, chv,     "CHV",     "Intel(R) HD Graphics")
 
-#ifndef PREFER_IRIS
+#ifdef PREFER_IRISA
 CHIPSET(0x1602, bdw_gt1, "BDW GT1", "Intel(R) HD Graphics")
 CHIPSET(0x1606, bdw_gt1, "BDW GT1", "Intel(R) HD Graphics")
 CHIPSET(0x160A, bdw_gt1, "BDW GT1", "Intel(R) HD Graphics")
