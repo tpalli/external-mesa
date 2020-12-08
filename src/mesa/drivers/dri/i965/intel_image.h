@@ -111,6 +111,9 @@ struct __DRIimageRec {
    /* \} */
 
    void *data;
+
+   /* DRI loader screen. */
+   __DRIscreen *sPriv;
 };
 
 #ifdef __cplusplus

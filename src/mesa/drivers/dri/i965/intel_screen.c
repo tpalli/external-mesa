@@ -478,6 +478,7 @@ intel_allocate_image(struct intel_screen *screen, int dri_format,
 
     image->internal_format = _mesa_get_format_base_format(image->format);
     image->data = loaderPrivate;
+    image->sPriv = screen->driScrnPriv;
 
     return image;
 }
@@ -649,6 +650,20 @@ static void
 intel_destroy_image(__DRIimage *image)
 {
    brw_bo_unreference(image->bo);
+
+   if (image->sPriv && image->data) {
+      const __DRIimageLoaderExtension *imgLoader = image->sPriv->image.loader;
+      const __DRIdri2LoaderExtension *dri2Loader = image->sPriv->dri2.loader;
+
+      if (imgLoader && imgLoader->base.version >= 4 &&
+            imgLoader->destroyLoaderImageState) {
+         imgLoader->destroyLoaderImageState(image->data);
+      } else if (dri2Loader && dri2Loader->base.version >= 5 &&
+            dri2Loader->destroyLoaderImageState) {
+         dri2Loader->destroyLoaderImageState(image->data);
+      }
+   }
+
    free(image);
 }
 
@@ -1010,6 +1025,7 @@ intel_dup_image(__DRIimage *orig_image, void *loaderPrivate)
    image->data            = loaderPrivate;
    image->aux_offset      = orig_image->aux_offset;
    image->aux_pitch       = orig_image->aux_pitch;
+   image->sPriv           = orig_image->sPriv;
 
    memcpy(image->strides, orig_image->strides, sizeof(image->strides));
    memcpy(image->offsets, orig_image->offsets, sizeof(image->offsets));
