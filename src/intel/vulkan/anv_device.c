@@ -342,14 +342,20 @@ anv_physical_device_try_create(struct anv_instance *instance,
    }
 
    struct anv_physical_device *device =
-      vk_alloc(&instance->alloc, sizeof(*device), 8,
+      vk_alloc(&instance->vk.alloc, sizeof(*device), 8,
                VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
    if (device == NULL) {
       result = vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
       goto fail_fd;
    }
 
-   vk_object_base_init(NULL, &device->base, VK_OBJECT_TYPE_PHYSICAL_DEVICE);
+   result = vk_physical_device_init(&device->vk, &instance->vk,
+                                    NULL, /* We set up extensions later */
+                                    &anv_physical_device_dispatch_table);
+   if (result != VK_SUCCESS) {
+      vk_error(result);
+      goto fail_alloc;
+   }
    device->instance = instance;
 
    assert(strlen(path) < ARRAY_SIZE(device->path));
@@ -375,7 +381,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
          result = vk_errorfi(device->instance, NULL,
                              VK_ERROR_INITIALIZATION_FAILED,
                              "failed to get command parser version");
-         goto fail_alloc;
+         goto fail_base;
       }
    }
 
@@ -383,14 +389,14 @@ anv_physical_device_try_create(struct anv_instance *instance,
       result = vk_errorfi(device->instance, NULL,
                           VK_ERROR_INITIALIZATION_FAILED,
                           "kernel missing gem wait");
-      goto fail_alloc;
+      goto fail_base;
    }
 
    if (!anv_gem_get_param(fd, I915_PARAM_HAS_EXECBUF2)) {
       result = vk_errorfi(device->instance, NULL,
                           VK_ERROR_INITIALIZATION_FAILED,
                           "kernel missing execbuf2");
-      goto fail_alloc;
+      goto fail_base;
    }
 
    if (!device->info.has_llc &&
@@ -398,7 +404,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
       result = vk_errorfi(device->instance, NULL,
                           VK_ERROR_INITIALIZATION_FAILED,
                           "kernel missing wc mmap");
-      goto fail_alloc;
+      goto fail_base;
    }
 
    device->has_softpin = anv_gem_get_param(fd, I915_PARAM_HAS_EXEC_SOFTPIN);
@@ -415,7 +421,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
 
    result = anv_physical_device_init_heaps(device, fd);
    if (result != VK_SUCCESS)
-      goto fail_alloc;
+      goto fail_base;
 
    device->use_softpin = device->has_softpin &&
                          device->supports_48bit_addresses;
@@ -503,7 +509,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
    device->compiler = brw_compiler_create(NULL, &device->info);
    if (device->compiler == NULL) {
       result = vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
-      goto fail_alloc;
+      goto fail_base;
    }
    device->compiler->shader_debug_log = compiler_debug_log;
    device->compiler->shader_perf_log = compiler_perf_log;
@@ -536,7 +542,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
 
    anv_physical_device_init_disk_cache(device);
 
-   if (instance->enabled_extensions.KHR_display) {
+   if (instance->vk.enabled_extensions.KHR_display) {
       master_fd = open(primary_path, O_RDWR | O_CLOEXEC);
       if (master_fd >= 0) {
          /* prod the device with a GETPARAM call which will fail if
@@ -557,7 +563,7 @@ anv_physical_device_try_create(struct anv_instance *instance,
    device->perf = anv_get_perf(&device->info, fd);
 
    anv_physical_device_get_supported_extensions(device,
-                                                &device->supported_extensions);
+                                                &device->vk.supported_extensions);
 
 
    device->local_fd = fd;
@@ -570,8 +576,10 @@ fail_disk_cache:
    anv_physical_device_free_disk_cache(device);
 fail_compiler:
    ralloc_free(device->compiler);
+fail_base:
+   vk_physical_device_finish(&device->vk);
 fail_alloc:
-   vk_free(&instance->alloc, device);
+   vk_free(&instance->vk.alloc, device);
 fail_fd:
    close(fd);
    if (master_fd != -1)
@@ -589,8 +597,8 @@ anv_physical_device_destroy(struct anv_physical_device *device)
    close(device->local_fd);
    if (device->master_fd >= 0)
       close(device->master_fd);
-   vk_object_base_finish(&device->base);
-   vk_free(&device->instance->alloc, device);
+   vk_physical_device_finish(&device->vk);
+   vk_free(&device->instance->vk.alloc, device);
 }
 
 static void *
@@ -645,10 +653,10 @@ anv_init_dri_options(struct anv_instance *instance)
                       ARRAY_SIZE(anv_dri_options));
    driParseConfigFiles(&instance->dri_options,
                        &instance->available_dri_options, 0, "anv", NULL,
-                       instance->app_info.app_name,
-                       instance->app_info.app_version,
-                       instance->app_info.engine_name,
-                       instance->app_info.engine_version);
+                       instance->vk.app_info.app_name,
+                       instance->vk.app_info.app_version,
+                       instance->vk.app_info.engine_name,
+                       instance->vk.app_info.engine_version);
 }
 
 VkResult anv_CreateInstance(
@@ -661,95 +669,21 @@ VkResult anv_CreateInstance(
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 
-   struct vk_instance_extension_table enabled_extensions = {};
-   for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
-      int idx;
-      for (idx = 0; idx < VK_INSTANCE_EXTENSION_COUNT; idx++) {
-         if (strcmp(pCreateInfo->ppEnabledExtensionNames[i],
-                    vk_instance_extensions[idx].extensionName) == 0)
-            break;
-      }
+   if (pAllocator == NULL)
+      pAllocator = &default_alloc;
 
-      if (idx >= VK_INSTANCE_EXTENSION_COUNT)
-         return vk_error(VK_ERROR_EXTENSION_NOT_PRESENT);
-
-      if (!anv_instance_extensions_supported.extensions[idx])
-         return vk_error(VK_ERROR_EXTENSION_NOT_PRESENT);
-
-      enabled_extensions.extensions[idx] = true;
-   }
-
-   instance = vk_alloc2(&default_alloc, pAllocator, sizeof(*instance), 8,
-                         VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+   instance = vk_alloc(pAllocator, sizeof(*instance), 8,
+                       VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
    if (!instance)
       return vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   vk_object_base_init(NULL, &instance->base, VK_OBJECT_TYPE_INSTANCE);
-
-   if (pAllocator)
-      instance->alloc = *pAllocator;
-   else
-      instance->alloc = default_alloc;
-
-   instance->app_info = (struct anv_app_info) { .api_version = 0 };
-   if (pCreateInfo->pApplicationInfo) {
-      const VkApplicationInfo *app = pCreateInfo->pApplicationInfo;
-
-      instance->app_info.app_name =
-         vk_strdup(&instance->alloc, app->pApplicationName,
-                   VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-      instance->app_info.app_version = app->applicationVersion;
-
-      instance->app_info.engine_name =
-         vk_strdup(&instance->alloc, app->pEngineName,
-                   VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-      instance->app_info.engine_version = app->engineVersion;
-
-      instance->app_info.api_version = app->apiVersion;
-   }
-
-   if (instance->app_info.api_version == 0)
-      instance->app_info.api_version = VK_API_VERSION_1_0;
-
-   instance->enabled_extensions = enabled_extensions;
-
-   for (unsigned i = 0; i < ARRAY_SIZE(instance->dispatch.entrypoints); i++) {
-      /* Vulkan requires that entrypoints for extensions which have not been
-       * enabled must not be advertised.
-       */
-      if (!anv_instance_entrypoint_is_enabled(i, instance->app_info.api_version,
-                                              &instance->enabled_extensions)) {
-         instance->dispatch.entrypoints[i] = NULL;
-      } else {
-         instance->dispatch.entrypoints[i] =
-            anv_instance_dispatch_table.entrypoints[i];
-      }
-   }
-
-   for (unsigned i = 0; i < ARRAY_SIZE(instance->physical_device_dispatch.entrypoints); i++) {
-      /* Vulkan requires that entrypoints for extensions which have not been
-       * enabled must not be advertised.
-       */
-      if (!anv_physical_device_entrypoint_is_enabled(i, instance->app_info.api_version,
-                                                     &instance->enabled_extensions)) {
-         instance->physical_device_dispatch.entrypoints[i] = NULL;
-      } else {
-         instance->physical_device_dispatch.entrypoints[i] =
-            anv_physical_device_dispatch_table.entrypoints[i];
-      }
-   }
-
-   for (unsigned i = 0; i < ARRAY_SIZE(instance->device_dispatch.entrypoints); i++) {
-      /* Vulkan requires that entrypoints for extensions which have not been
-       * enabled must not be advertised.
-       */
-      if (!anv_device_entrypoint_is_enabled(i, instance->app_info.api_version,
-                                            &instance->enabled_extensions, NULL)) {
-         instance->device_dispatch.entrypoints[i] = NULL;
-      } else {
-         instance->device_dispatch.entrypoints[i] =
-            anv_device_dispatch_table.entrypoints[i];
-      }
+   result = vk_instance_init(&instance->vk,
+                             &anv_instance_extensions_supported,
+                             &anv_instance_dispatch_table,
+                             pCreateInfo, pAllocator);
+   if (result != VK_SUCCESS) {
+      vk_free(pAllocator, instance);
+      return vk_error(result);
    }
 
    instance->physical_devices_enumerated = false;
@@ -757,7 +691,8 @@ VkResult anv_CreateInstance(
 
    result = vk_debug_report_instance_init(&instance->debug_report_callbacks);
    if (result != VK_SUCCESS) {
-      vk_free2(&default_alloc, pAllocator, instance);
+      vk_instance_finish(&instance->vk);
+      vk_free(pAllocator, instance);
       return vk_error(result);
    }
 
@@ -788,9 +723,6 @@ void anv_DestroyInstance(
                             &instance->physical_devices, link)
       anv_physical_device_destroy(pdevice);
 
-   vk_free(&instance->alloc, (char *)instance->app_info.app_name);
-   vk_free(&instance->alloc, (char *)instance->app_info.engine_name);
-
    VG(VALGRIND_DESTROY_MEMPOOL(instance));
 
    vk_debug_report_instance_destroy(&instance->debug_report_callbacks);
@@ -800,8 +732,8 @@ void anv_DestroyInstance(
    driDestroyOptionCache(&instance->dri_options);
    driDestroyOptionInfo(&instance->available_dri_options);
 
-   vk_object_base_finish(&instance->base);
-   vk_free(&instance->alloc, instance);
+   vk_instance_finish(&instance->vk);
+   vk_free(&instance->vk.alloc, instance);
 }
 
 static VkResult
@@ -960,7 +892,7 @@ void anv_GetPhysicalDeviceFeatures(
       pdevice->compiler->scalar_stage[MESA_SHADER_VERTEX] &&
       pdevice->compiler->scalar_stage[MESA_SHADER_GEOMETRY];
 
-   struct anv_app_info *app_info = &pdevice->instance->app_info;
+   struct vk_app_info *app_info = &pdevice->instance->vk.app_info;
 
    /* The new DOOM and Wolfenstein games require depthBounds without
     * checking for it.  They seem to run fine without it so just claim it's
@@ -2348,19 +2280,7 @@ PFN_vkVoidFunction anv_GetInstanceProcAddr(
    if (instance == NULL)
       return NULL;
 
-   int idx = anv_get_instance_entrypoint_index(pName);
-   if (idx >= 0)
-      return instance->dispatch.entrypoints[idx];
-
-   idx = anv_get_physical_device_entrypoint_index(pName);
-   if (idx >= 0)
-      return instance->physical_device_dispatch.entrypoints[idx];
-
-   idx = anv_get_device_entrypoint_index(pName);
-   if (idx >= 0)
-      return instance->device_dispatch.entrypoints[idx];
-
-   return NULL;
+   return vk_instance_get_proc_addr(&instance->vk, pName);
 }
 
 /* With version 1+ of the loader interface the ICD should expose
@@ -2384,15 +2304,7 @@ PFN_vkVoidFunction anv_GetDeviceProcAddr(
     const char*                                 pName)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
-
-   if (!device || !pName)
-      return NULL;
-
-   int idx = anv_get_device_entrypoint_index(pName);
-   if (idx < 0)
-      return NULL;
-
-   return device->dispatch.entrypoints[idx];
+   return vk_device_get_proc_addr(&device->vk, pName);
 }
 
 /* With version 4+ of the loader interface the ICD should expose
@@ -2408,15 +2320,7 @@ PFN_vkVoidFunction vk_icdGetPhysicalDeviceProcAddr(
     const char* pName)
 {
    ANV_FROM_HANDLE(anv_instance, instance, _instance);
-
-   if (!pName || !instance)
-      return NULL;
-
-   int idx = anv_get_physical_device_entrypoint_index(pName);
-   if (idx < 0)
-      return NULL;
-
-   return instance->physical_device_dispatch.entrypoints[idx];
+   return vk_instance_get_physical_device_proc_addr(&instance->vk, pName);
 }
 
 
@@ -2428,7 +2332,7 @@ anv_CreateDebugReportCallbackEXT(VkInstance _instance,
 {
    ANV_FROM_HANDLE(anv_instance, instance, _instance);
    return vk_create_debug_report_callback(&instance->debug_report_callbacks,
-                                          pCreateInfo, pAllocator, &instance->alloc,
+                                          pCreateInfo, pAllocator, &instance->vk.alloc,
                                           pCallback);
 }
 
@@ -2439,7 +2343,7 @@ anv_DestroyDebugReportCallbackEXT(VkInstance _instance,
 {
    ANV_FROM_HANDLE(anv_instance, instance, _instance);
    vk_destroy_debug_report_callback(&instance->debug_report_callbacks,
-                                    _callback, pAllocator, &instance->alloc);
+                                    _callback, pAllocator, &instance->vk.alloc);
 }
 
 void
@@ -2535,7 +2439,7 @@ VkResult anv_EnumerateDeviceExtensionProperties(
    VK_OUTARRAY_MAKE(out, pProperties, pPropertyCount);
 
    for (int i = 0; i < VK_DEVICE_EXTENSION_COUNT; i++) {
-      if (device->supported_extensions.extensions[i]) {
+      if (device->vk.supported_extensions.extensions[i]) {
          vk_outarray_append(&out, prop) {
             *prop = vk_device_extensions[i];
          }
@@ -2711,24 +2615,6 @@ VkResult anv_CreateDevice(
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 
-   struct vk_device_extension_table enabled_extensions = { };
-   for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
-      int idx;
-      for (idx = 0; idx < VK_DEVICE_EXTENSION_COUNT; idx++) {
-         if (strcmp(pCreateInfo->ppEnabledExtensionNames[i],
-                    vk_device_extensions[idx].extensionName) == 0)
-            break;
-      }
-
-      if (idx >= VK_DEVICE_EXTENSION_COUNT)
-         return vk_error(VK_ERROR_EXTENSION_NOT_PRESENT);
-
-      if (!physical_device->supported_extensions.extensions[idx])
-         return vk_error(VK_ERROR_EXTENSION_NOT_PRESENT);
-
-      enabled_extensions.extensions[idx] = true;
-   }
-
    /* Check enabled features */
    bool robust_buffer_access = false;
    if (pCreateInfo->pEnabledFeatures) {
@@ -2779,14 +2665,21 @@ VkResult anv_CreateDevice(
       queue_priority ? queue_priority->globalPriority :
          VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT;
 
-   device = vk_alloc2(&physical_device->instance->alloc, pAllocator,
+   device = vk_alloc2(&physical_device->instance->vk.alloc, pAllocator,
                        sizeof(*device), 8,
                        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
    if (!device)
       return vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   result = vk_device_init(&device->vk, NULL, NULL, pCreateInfo,
-                           &physical_device->instance->alloc, pAllocator);
+   const struct vk_device_dispatch_table *genX_disp_table =
+      anv_genX(&physical_device->info, device_dispatch_table);
+   struct vk_device_dispatch_table dev_disp_table;
+   vk_device_dispatch_tables_merge(&dev_disp_table, genX_disp_table,
+                                   &anv_device_dispatch_table);
+
+   result = vk_device_init(&device->vk, &physical_device->vk,
+                           &dev_disp_table, pCreateInfo,
+                           &physical_device->instance->vk.alloc, pAllocator);
    if (result != VK_SUCCESS) {
       vk_error(result);
       goto fail_alloc;
@@ -2878,22 +2771,6 @@ VkResult anv_CreateDevice(
    device->can_chain_batches = device->info.gen >= 8;
 
    device->robust_buffer_access = robust_buffer_access;
-   device->enabled_extensions = enabled_extensions;
-
-   const struct anv_instance *instance = physical_device->instance;
-   for (unsigned i = 0; i < ARRAY_SIZE(device->dispatch.entrypoints); i++) {
-      /* Vulkan requires that entrypoints for extensions which have not been
-       * enabled must not be advertised.
-       */
-      if (!anv_device_entrypoint_is_enabled(i, instance->app_info.api_version,
-                                            &instance->enabled_extensions,
-                                            &device->enabled_extensions)) {
-         device->dispatch.entrypoints[i] = NULL;
-      } else {
-         device->dispatch.entrypoints[i] =
-            anv_resolve_device_entrypoint(&device->info, i);
-      }
-   }
 
    if (pthread_mutex_init(&device->mutex, NULL) != 0) {
       result = vk_error(VK_ERROR_INITIALIZATION_FAILED);
