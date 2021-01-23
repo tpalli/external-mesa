@@ -105,44 +105,6 @@ C_TEMPLATE = Template(textwrap.dedent(u"""\
             unreachable("Undefined struct type.");
         }
     }
-
-    void vk_load_instance_commands(VkInstance instance,
-                                   PFN_vkGetInstanceProcAddr gpa,
-                                   struct vk_instance_dispatch_table *table)
-    {
-        memset(table, 0, sizeof(*table));
-        table->GetInstanceProcAddr = gpa;
-    % for cmd in commands:
-        % if not cmd.device_entrypoint and cmd.name != 'vkGetInstanceProcAddr':
-            % if cmd.extension is not None and cmd.extension.define is not None:
-    #ifdef ${cmd.extension.define}
-        table->${cmd.name[2:]} = (PFN_${cmd.name}) gpa(instance, "${cmd.name}");
-    #endif
-            % else:
-        table->${cmd.name[2:]} = (PFN_${cmd.name}) gpa(instance, "${cmd.name}");
-            % endif
-        % endif
-    %endfor
-    }
-
-    void vk_load_device_commands(VkDevice device,
-                                 PFN_vkGetDeviceProcAddr gpa,
-                                 struct vk_device_dispatch_table *table)
-    {
-        memset(table, 0, sizeof(*table));
-        table->GetDeviceProcAddr = gpa;
-    % for cmd in commands:
-        % if cmd.device_entrypoint and cmd.name != 'vkGetDeviceProcAddr':
-            % if cmd.extension is not None and cmd.extension.define is not None:
-    #ifdef ${cmd.extension.define}
-        table->${cmd.name[2:]} = (PFN_${cmd.name}) gpa(device, "${cmd.name}");
-    #endif
-            % else:
-        table->${cmd.name[2:]} = (PFN_${cmd.name}) gpa(device, "${cmd.name}");
-            % endif
-        % endif
-    %endfor
-    }
     """),
     output_encoding='utf-8')
 
@@ -178,39 +140,6 @@ H_TEMPLATE = Template(textwrap.dedent(u"""\
     % endfor
 
     size_t vk_structure_type_size(const struct VkBaseInStructure *item);
-
-    struct vk_instance_dispatch_table {
-        PFN_vkGetInstanceProcAddr GetInstanceProcAddr;
-    % for cmd in commands:
-        % if not cmd.device_entrypoint and cmd.name != 'vkGetInstanceProcAddr':
-            % if cmd.extension is not None and cmd.extension.define is not None:
-    #ifdef ${cmd.extension.define}
-        PFN_${cmd.name} ${cmd.name[2:]};
-    #endif
-            % else:
-        PFN_${cmd.name} ${cmd.name[2:]};
-            % endif
-        % endif
-    %endfor
-    };
-
-    struct vk_device_dispatch_table {
-        PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
-    % for cmd in commands:
-        % if cmd.device_entrypoint and cmd.name != 'vkGetDeviceProcAddr':
-            % if cmd.extension is not None and cmd.extension.define is not None:
-    #ifdef ${cmd.extension.define}
-        PFN_${cmd.name} ${cmd.name[2:]};
-    #endif
-            % else:
-        PFN_${cmd.name} ${cmd.name[2:]};
-            % endif
-        % endif
-    %endfor
-    };
-
-    void vk_load_instance_commands(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, struct vk_instance_dispatch_table *table);
-    void vk_load_device_commands(VkDevice device, PFN_vkGetDeviceProcAddr gpa, struct vk_device_dispatch_table *table);
 
     #ifdef __cplusplus
     } /* extern "C" */
