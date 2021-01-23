@@ -63,6 +63,8 @@
 #include "vk_alloc.h"
 #include "vk_debug_report.h"
 #include "vk_device.h"
+#include "vk_instance.h"
+#include "vk_physical_device.h"
 
 /* Pre-declarations needed for WSI entrypoints */
 struct wl_surface;
@@ -1123,7 +1125,7 @@ struct anv_physical_device {
 
     bool                                        always_flush_cache;
 
-    struct anv_device_extension_table           supported_extensions;
+    struct vk_device_extension_table            supported_extensions;
 
     uint32_t                                    eu_total;
     uint32_t                                    subslice_total;
@@ -1162,7 +1164,7 @@ struct anv_instance {
 
     struct anv_app_info                         app_info;
 
-    struct anv_instance_extension_table         enabled_extensions;
+    struct vk_instance_extension_table          enabled_extensions;
     struct anv_instance_dispatch_table          dispatch;
     struct anv_physical_device_dispatch_table   physical_device_dispatch;
     struct anv_device_dispatch_table            device_dispatch;
@@ -1181,6 +1183,7 @@ struct anv_instance {
 VkResult anv_init_wsi(struct anv_physical_device *physical_device);
 void anv_finish_wsi(struct anv_physical_device *physical_device);
 
+extern const struct vk_instance_extension_table anv_instance_extensions_supported;
 uint32_t anv_physical_device_api_version(struct anv_physical_device *dev);
 bool anv_physical_device_extension_supported(struct anv_physical_device *dev,
                                              const char *name);
@@ -1359,7 +1362,7 @@ struct anv_device {
     bool                                        can_chain_batches;
     bool                                        robust_buffer_access;
     bool                                        has_thread_submit;
-    struct anv_device_extension_table           enabled_extensions;
+    struct vk_device_extension_table            enabled_extensions;
     struct anv_device_dispatch_table            dispatch;
 
     pthread_mutex_t                             vma_mutex;
@@ -4463,14 +4466,14 @@ const char *anv_get_device_entry_name(int index);
 
 bool
 anv_instance_entrypoint_is_enabled(int index, uint32_t core_version,
-                                   const struct anv_instance_extension_table *instance);
+                                   const struct vk_instance_extension_table *instance);
 bool
 anv_physical_device_entrypoint_is_enabled(int index, uint32_t core_version,
-                                          const struct anv_instance_extension_table *instance);
+                                          const struct vk_instance_extension_table *instance);
 bool
 anv_device_entrypoint_is_enabled(int index, uint32_t core_version,
-                                 const struct anv_instance_extension_table *instance,
-                                 const struct anv_device_extension_table *device);
+                                 const struct vk_instance_extension_table *instance,
+                                 const struct vk_device_extension_table *device);
 
 void *anv_resolve_device_entrypoint(const struct gen_device_info *devinfo,
                                     uint32_t index);
