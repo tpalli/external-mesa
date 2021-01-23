@@ -55,7 +55,7 @@ LOCAL_SRC_FILES := $(VULKAN_UTIL_FILES) $(VULKAN_WSI_FILES)
 
 vulkan_api_xml = $(MESA_TOP)/src/vulkan/registry/vk.xml
 
-$(firstword $(LOCAL_GENERATED_SOURCES)): $(MESA_TOP)/src/vulkan/util/gen_enum_to_str.py \
+$(intermediates)/util/vk_enum_to_str.c: $(MESA_TOP)/src/vulkan/util/gen_enum_to_str.py \
 		$(vulkan_api_xml)
 	@echo "target Generated: $(PRIVATE_MODULE) <= $(notdir $(@))"
 	@mkdir -p $(dir $@)
@@ -63,7 +63,23 @@ $(firstword $(LOCAL_GENERATED_SOURCES)): $(MESA_TOP)/src/vulkan/util/gen_enum_to
 	    --xml $(vulkan_api_xml) \
 	    --outdir $(dir $@)
 
-$(lastword $(LOCAL_GENERATED_SOURCES)): $(firstword $(LOCAL_GENERATED_SOURCES))
+$(intermediates)/util/vk_enum_to_str.h: $(intermediates)/util/vk_enum_to_str.c
+
+$(intermediates)/util/vk_extensions.c: $(MESA_TOP)/src/vulkan/util/vk_extensions_gen.py \
+		$(vulkan_api_xml)
+	@echo "target Generated: $(PRIVATE_MODULE) <= $(notdir $(@))"
+	@mkdir -p $(dir $@)
+	$(hide) $(MESA_PYTHON2) $< \
+	    --xml $(vulkan_api_xml) \
+	    --out-c $@
+
+$(intermediates)/util/vk_extensions.h: $(MESA_TOP)/src/vulkan/util/vk_extensions_gen.py \
+		$(vulkan_api_xml)
+	@echo "target Generated: $(PRIVATE_MODULE) <= $(notdir $(@))"
+	@mkdir -p $(dir $@)
+	$(hide) $(MESA_PYTHON2) $< \
+	    --xml $(vulkan_api_xml) \
+	    --out-h $@
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(intermediates)/util
 
