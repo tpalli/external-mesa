@@ -24,18 +24,15 @@ COPYRIGHT = """\
  */
 """
 
-import argparse
 import os.path
-import re
 import sys
 
 VULKAN_UTIL = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../vulkan/util'))
 sys.path.append(VULKAN_UTIL)
 
 from vk_extensions import *
-from vk_extensions_gen import *
 
-MAX_API_VERSION = '1.1.107'
+API_PATCH_VERSION = 145
 
 # Supported API versions.  Each one is the maximum patch version for the given
 # version.  Version come in increasing order and each version is available if
@@ -134,32 +131,41 @@ EXTENSIONS = [
     Extension('VK_EXT_sample_locations',                  1, False),
     Extension('VK_EXT_sampler_filter_minmax',             1, False),
     Extension('VK_EXT_scalar_block_layout',               1, False),
-    Extension('VK_EXT_shader_viewport_index_layer',       1, False),
     Extension('VK_EXT_shader_stencil_export',             1, True),
     Extension('VK_EXT_shader_subgroup_ballot',            1, False),
     Extension('VK_EXT_shader_subgroup_vote',              1, False),
+    Extension('VK_EXT_shader_viewport_index_layer',       1, False),
     Extension('VK_EXT_transform_feedback',                1, True),
     Extension('VK_EXT_vertex_attribute_divisor',          3, True),
     Extension('VK_EXT_ycbcr_image_arrays',                1, False),
+    Extension('VK_ANDROID_native_buffer',                 5, False),
     Extension('VK_GOOGLE_decorate_string',                1, True),
     Extension('VK_GOOGLE_hlsl_functionality1',            1, True),
 ]
 
+# Sort the extension list the way we expect: KHR, then EXT, then vendors
+# alphabetically. For digits, read them as a whole number sort that.
+# eg.: VK_KHR_8bit_storage < VK_KHR_16bit_storage < VK_EXT_acquire_xlib_display
+def extension_order(ext):
+    order = []
+    for substring in re.split('(KHR|EXT|[0-9]+)', ext.name):
+        if substring == 'KHR':
+            order.append(1)
+        if substring == 'EXT':
+            order.append(2)
+        elif substring.isdigit():
+            order.append(int(substring))
+        else:
+            order.append(substring)
+    return order
+for i in range(len(EXTENSIONS) - 1):
+    if extension_order(EXTENSIONS[i + 1]) < extension_order(EXTENSIONS[i]):
+        print(EXTENSIONS[i + 1].name + ' should come before ' + EXTENSIONS[i].name)
+        exit(1)
+
 MAX_API_VERSION = VkVersion('0.0.0')
 for version in API_VERSIONS:
     version.version = VkVersion(version.version)
+    version.version.patch = API_PATCH_VERSION
     assert version.version > MAX_API_VERSION
     MAX_API_VERSION = version.version
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--out-c', help='Output C file.', required=True)
-    parser.add_argument('--out-h', help='Output H file.', required=True)
-    parser.add_argument('--xml',
-                        help='Vulkan API XML file.',
-                        required=True,
-                        action='append',
-                        dest='xml_files')
-    args = parser.parse_args()
-
-    gen_extensions('lvp', args.xml_files, API_VERSIONS, MAX_API_VERSION, EXTENSIONS, args.out_c, args.out_h)
