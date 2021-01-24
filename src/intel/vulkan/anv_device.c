@@ -349,9 +349,13 @@ anv_physical_device_try_create(struct anv_instance *instance,
       goto fail_fd;
    }
 
+   struct vk_physical_device_dispatch_table dispatch_table;
+   vk_physical_device_dispatch_table_from_entrypoints(
+      &dispatch_table, &anv_physical_device_entrypoints, true);
+
    result = vk_physical_device_init(&device->vk, &instance->vk,
                                     NULL, /* We set up extensions later */
-                                    &anv_physical_device_dispatch_table);
+                                    &dispatch_table);
    if (result != VK_SUCCESS) {
       vk_error(result);
       goto fail_alloc;
@@ -677,9 +681,13 @@ VkResult anv_CreateInstance(
    if (!instance)
       return vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
 
+   struct vk_instance_dispatch_table dispatch_table;
+   vk_instance_dispatch_table_from_entrypoints(
+      &dispatch_table, &anv_instance_entrypoints, true);
+
    result = vk_instance_init(&instance->vk,
                              &anv_instance_extensions_supported,
-                             &anv_instance_dispatch_table,
+                             &dispatch_table,
                              pCreateInfo, pAllocator);
    if (result != VK_SUCCESS) {
       vk_free(pAllocator, instance);
@@ -2671,14 +2679,14 @@ VkResult anv_CreateDevice(
    if (!device)
       return vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   const struct vk_device_dispatch_table *genX_disp_table =
-      anv_genX(&physical_device->info, device_dispatch_table);
-   struct vk_device_dispatch_table dev_disp_table;
-   vk_device_dispatch_tables_merge(&dev_disp_table, genX_disp_table,
-                                   &anv_device_dispatch_table);
+   struct vk_device_dispatch_table dispatch_table;
+   vk_device_dispatch_table_from_entrypoints(&dispatch_table,
+      anv_genX(&physical_device->info, device_entrypoints), true);
+   vk_device_dispatch_table_from_entrypoints(&dispatch_table,
+      &anv_device_entrypoints, false);
 
    result = vk_device_init(&device->vk, &physical_device->vk,
-                           &dev_disp_table, pCreateInfo,
+                           &dispatch_table, pCreateInfo,
                            &physical_device->instance->vk.alloc, pAllocator);
    if (result != VK_SUCCESS) {
       vk_error(result);
