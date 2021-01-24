@@ -139,11 +139,6 @@ void vk_device_dispatch_table_from_entrypoints(
     const struct vk_device_entrypoint_table *entrypoint_table,
     bool overwrite);
 
-void
-vk_device_dispatch_tables_merge(struct vk_device_dispatch_table *dst,
-                                const struct vk_device_dispatch_table *a,
-                                const struct vk_device_dispatch_table *b);
-
 PFN_vkVoidFunction
 vk_instance_dispatch_table_get(const struct vk_instance_dispatch_table *table,
                                const char *name);
@@ -460,21 +455,6 @@ void vk_${type}_dispatch_table_from_entrypoints(
 ${dispatch_table_from_entrypoints('instance')}
 ${dispatch_table_from_entrypoints('physical_device')}
 ${dispatch_table_from_entrypoints('device')}
-
-void
-vk_device_dispatch_tables_merge(struct vk_device_dispatch_table *dst,
-                                const struct vk_device_dispatch_table *a,
-                                const struct vk_device_dispatch_table *b)
-{
-    PFN_vkVoidFunction *dst_arr = (PFN_vkVoidFunction *)dst;
-    const PFN_vkVoidFunction *a_arr = (const PFN_vkVoidFunction *)a;
-    const PFN_vkVoidFunction *b_arr = (const PFN_vkVoidFunction *)b;
-
-    for (unsigned i = 0; i < (sizeof(*a) / sizeof(*a_arr)); i++) {
-        assert(a_arr[i] == NULL || b_arr[i] == NULL);
-        dst_arr[i] = a_arr[i] ? a_arr[i] : b_arr[i];
-    }
-}
 
 <%def name="lookup_funcs(type)">
 static PFN_vkVoidFunction
