@@ -22,6 +22,7 @@ vk_entrypoints_gen = files('vk_entrypoints_gen.py')
 
 files_vulkan_util = files(
   'vk_alloc.h',
+  'vk_cmd_copy.c',
   'vk_debug_report.c',
   'vk_debug_report.h',
   'vk_deferred_operation.c',
