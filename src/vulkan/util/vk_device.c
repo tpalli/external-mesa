@@ -27,6 +27,7 @@
 #include "vk_instance.h"
 #include "vk_physical_device.h"
 #include "util/hash_table.h"
+#include "util/ralloc.h"
 
 VkResult
 vk_device_init(struct vk_device *device,

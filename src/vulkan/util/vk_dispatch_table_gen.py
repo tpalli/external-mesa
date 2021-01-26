@@ -48,6 +48,7 @@ TEMPLATE_H = Template(COPYRIGHT + """\
 
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_intel.h"
+#include "vulkan/vk_android_native_buffer.h"
 
 #include "vk_extensions.h"
 

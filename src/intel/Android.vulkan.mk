@@ -23,7 +23,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 include $(LOCAL_PATH)/Makefile.sources
 
-VK_ENTRYPOINTS_GEN_SCRIPT := $(LOCAL_PATH)/src/vulkan/util/vk_entrypoints_gen.py
+VK_ENTRYPOINTS_GEN_SCRIPT := $(MESA_TOP)/src/vulkan/util/vk_entrypoints_gen.py
 ANV_EXTENSIONS_GEN_SCRIPT := $(LOCAL_PATH)/vulkan/anv_extensions_gen.py
 ANV_EXTENSIONS_SCRIPT := $(LOCAL_PATH)/vulkan/anv_extensions.py
 VULKAN_API_XML := $(MESA_TOP)/src/vulkan/registry/vk.xml
@@ -53,6 +53,7 @@ VULKAN_COMMON_HEADER_LIBRARIES := \
 endif
 
 ANV_STATIC_LIBRARIES := \
+	libmesa_vulkan_util \
 	libmesa_vulkan_common \
 	libmesa_genxml \
 	libmesa_nir
@@ -238,7 +239,7 @@ LOCAL_STATIC_LIBRARIES := \
 
 LOCAL_GENERATED_SOURCES := $(addprefix $(intermediates)/,$(VULKAN_GENERATED_FILES))
 
-ANV_VK_ENTRYPOINTs_GEN_ARGS= \
+ANV_VK_ENTRYPOINTS_GEN_ARGS= \
 	--proto --weak --prefix anv \
 	--device-prefix gen7 --device-prefix gen75 \
 	--device-prefix gen8 --device-prefix gen9 \
@@ -248,18 +249,12 @@ ANV_VK_ENTRYPOINTs_GEN_ARGS= \
 $(intermediates)/vulkan/anv_entrypoints.c: $(VK_ENTRYPOINTS_GEN_SCRIPT) \
 					   $(VULKAN_API_XML)
 	@mkdir -p $(dir $@)
-	$(MESA_PYTHON2) $(ANV_ENTRYPOINTS_GEN_SCRIPT) \
+	$(MESA_PYTHON2) $(VK_ENTRYPOINTS_GEN_SCRIPT) \
 		--xml $(VULKAN_API_XML) \
-		$(ANV_VK_ENTRYPOINTS_GEN_ARGS)
-		--out-c $@
+		$(ANV_VK_ENTRYPOINTS_GEN_ARGS) \
+		--out-c $@ --out-h $(dir $@)/anv_entrypoints.h
 
-$(intermediates)/vulkan/anv_entrypoints.h: $(VK_ENTRYPOINTS_GEN_SCRIPT) \
-					   $(VULKAN_API_XML)
-	@mkdir -p $(dir $@)
-	$(MESA_PYTHON2) $(ANV_ENTRYPOINTS_GEN_SCRIPT) \
-		--xml $(VULKAN_API_XML) \
-		$(ANV_VK_ENTRYPOINTS_GEN_ARGS)
-		--out-h $@
+$(intermediates)/vulkan/anv_entrypoints.h: $(intermediates)/vulkan/anv_entrypoints.c
 
 $(intermediates)/vulkan/anv_extensions.c: $(ANV_EXTENSIONS_GEN_SCRIPT) \
 					  $(ANV_EXTENSIONS_SCRIPT) \
