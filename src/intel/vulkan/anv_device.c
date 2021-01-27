@@ -2785,8 +2785,12 @@ VkResult anv_CreateDevice(
    if (!device)
       return vk_error(VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   vk_device_init(&device->vk, pCreateInfo,
-                  &physical_device->instance->alloc, pAllocator);
+   result = vk_device_init(&device->vk, pCreateInfo,
+                           &physical_device->instance->alloc, pAllocator);
+   if (result != VK_SUCCESS) {
+      vk_error(result);
+      goto fail_alloc;
+   }
 
    if (INTEL_DEBUG & DEBUG_BATCH) {
       const unsigned decode_flags =
@@ -3108,6 +3112,7 @@ VkResult anv_CreateDevice(
    close(device->fd);
  fail_device:
    vk_device_finish(&device->vk);
+ fail_alloc:
    vk_free(&device->vk.alloc, device);
 
    return result;
