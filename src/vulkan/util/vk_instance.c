@@ -88,3 +88,50 @@ vk_instance_finish(struct vk_instance *instance)
    vk_free(&instance->alloc, (char *)instance->app_info.engine_name);
    vk_object_base_finish(&instance->base);
 }
+
+PFN_vkVoidFunction
+vk_instance_get_proc_addr(const struct vk_instance *instance,
+                          const char *name)
+{
+   PFN_vkVoidFunction func;
+
+   if (instance == NULL || name == NULL)
+      return NULL;
+
+   func = vk_instance_dispatch_table_get_if_supported(&instance->dispatch_table,
+                                                      name,
+                                                      instance->app_info.api_version,
+                                                      &instance->enabled_extensions);
+   if (func != NULL)
+      return func;
+
+   func = vk_physical_device_dispatch_table_get_if_supported(&vk_physical_device_trampolines,
+                                                             name,
+                                                             instance->app_info.api_version,
+                                                             &instance->enabled_extensions);
+   if (func != NULL)
+      return func;
+
+   func = vk_device_dispatch_table_get_if_supported(&vk_device_trampolines,
+                                                    name,
+                                                    instance->app_info.api_version,
+                                                    &instance->enabled_extensions,
+                                                    NULL);
+   if (func != NULL)
+      return func;
+
+   return NULL;
+}
+
+PFN_vkVoidFunction
+vk_instance_get_physical_device_proc_addr(const struct vk_instance *instance,
+                                          const char *name)
+{
+   if (instance == NULL || name == NULL)
+      return NULL;
+
+   return vk_physical_device_dispatch_table_get_if_supported(&vk_physical_device_trampolines,
+                                                             name,
+                                                             instance->app_info.api_version,
+                                                             &instance->enabled_extensions);
+}
