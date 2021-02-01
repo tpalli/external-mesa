@@ -699,6 +699,17 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
    return setup_gralloc0_usage(device, format, imageUsage, grallocUsage);
 }
 
+static VkQueue
+get_render_queue(struct anv_device *dev)
+{
+   for (uint32_t i = 0; i < dev->queue_count; i++) {
+      if (dev->queues[i].family->engine_class ==
+          I915_ENGINE_CLASS_RENDER)
+         return anv_queue_to_handle(&dev->queues[i]);
+   }
+   return VK_NULL_HANDLE;
+}
+
 VkResult
 anv_AcquireImageANDROID(
       VkDevice            device_h,
@@ -762,8 +773,8 @@ anv_AcquireImageANDROID(
          .pSignalSemaphores = &semaphore_h,
       };
 
-      result = anv_QueueSubmit(anv_queue_to_handle(&device->queue), 1,
-                               &submit, fence_h);
+      VkQueue queue = get_render_queue(device);
+      result = anv_QueueSubmit(queue, 1, &submit, fence_h);
       if (result != VK_SUCCESS) {
          return vk_errorf(device, device, result,
                           "anv_QueueSubmit failed inside %s", __func__);
