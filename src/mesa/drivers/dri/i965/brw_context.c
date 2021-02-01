@@ -924,7 +924,8 @@ brw_process_driconf_options(struct brw_context *brw)
    if (*vendor_str)
       ctx->Const.VendorOverride = vendor_str;
 
-   ctx->Const.dri_config_options_sha1 = ralloc_array(brw, unsigned char, 20);
+   ctx->Const.dri_config_options_sha1 =
+      ralloc_array(brw->screen, unsigned char, 20);
    driComputeOptionsSha1(&brw->screen->optionCache,
                          ctx->Const.dri_config_options_sha1);
 }
@@ -968,7 +969,9 @@ brwCreateContext(gl_api api,
       ((ctx_config->attribute_mask & __DRIVER_CONTEXT_ATTRIB_RESET_STRATEGY) &&
        ctx_config->reset_strategy != __DRI_CTX_RESET_NO_NOTIFICATION);
 
-   struct brw_context *brw = rzalloc(NULL, struct brw_context);
+   struct brw_context *brw = align_malloc(sizeof(struct brw_context), 16);
+   memset(brw, 0, sizeof(struct brw_context));
+
    if (!brw) {
       fprintf(stderr, "%s: failed to alloc context\n", __func__);
       *dri_ctx_error = __DRI_CTX_ERROR_NO_MEMORY;
@@ -1266,7 +1269,7 @@ intelDestroyContext(__DRIcontext * driContextPriv)
    /* free the Mesa context */
    _mesa_free_context_data(&brw->ctx, true);
 
-   ralloc_free(brw);
+   align_free(brw);
    driContextPriv->driverPrivate = NULL;
 }
 
