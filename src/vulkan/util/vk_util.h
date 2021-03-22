@@ -33,6 +33,7 @@ extern "C" {
 /* common inlines and macros for vulkan drivers */
 
 #include <vulkan/vulkan.h>
+#include "vk_android.h"
 
 #define vk_foreach_struct(__iter, __start) \
    for (struct VkBaseOutStructure *__iter = (struct VkBaseOutStructure *)(__start); \

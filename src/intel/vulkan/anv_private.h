@@ -3599,9 +3599,8 @@ bool anv_formats_ccs_e_compatible(const struct gen_device_info *devinfo,
                                   VkFormat vk_format,
                                   VkImageTiling vk_tiling,
                                   const VkImageFormatListCreateInfoKHR *fmt_list);
-
-extern VkFormat
-vk_format_from_android(unsigned android_format, unsigned android_usage);
+VkFormat
+anv_vk_format_from_android(unsigned android_format, unsigned android_usage);
 
 static inline struct isl_swizzle
 anv_swizzle_for_render(struct isl_swizzle swizzle)

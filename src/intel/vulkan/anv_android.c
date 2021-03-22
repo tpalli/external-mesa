@@ -34,6 +34,7 @@
 #include <sync/sync.h>
 
 #include "anv_private.h"
+#include "vk_android.h"
 #include "vk_util.h"
 
 static int anv_hal_open(const struct hw_module_t* mod, const char* id, struct hw_device_t** dev);
@@ -113,20 +114,9 @@ enum {
 };
 
 inline VkFormat
-vk_format_from_android(unsigned android_format, unsigned android_usage)
+anv_vk_format_from_android(unsigned android_format, unsigned android_usage)
 {
    switch (android_format) {
-   case AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM:
-      return VK_FORMAT_R8G8B8A8_UNORM;
-   case AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM:
-   case AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM:
-      return VK_FORMAT_R8G8B8_UNORM;
-   case AHARDWAREBUFFER_FORMAT_R5G6B5_UNORM:
-      return VK_FORMAT_R5G6B5_UNORM_PACK16;
-   case AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT:
-      return VK_FORMAT_R16G16B16A16_SFLOAT;
-   case AHARDWAREBUFFER_FORMAT_R10G10B10A2_UNORM:
-      return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
    case AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420:
    case HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL:
       return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
@@ -135,26 +125,15 @@ vk_format_from_android(unsigned android_format, unsigned android_usage)
          return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
       else
          return VK_FORMAT_R8G8B8_UNORM;
-   case AHARDWAREBUFFER_FORMAT_BLOB:
    default:
-      return VK_FORMAT_UNDEFINED;
+      return vk_format_from_android(android_format);
    }
 }
 
-static inline unsigned
-android_format_from_vk(unsigned vk_format)
+inline VkFormat
+anv_android_format_from_vk(unsigned vk_format)
 {
    switch (vk_format) {
-   case VK_FORMAT_R8G8B8A8_UNORM:
-      return AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
-   case VK_FORMAT_R8G8B8_UNORM:
-      return AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM;
-   case VK_FORMAT_R5G6B5_UNORM_PACK16:
-      return AHARDWAREBUFFER_FORMAT_R5G6B5_UNORM;
-   case VK_FORMAT_R16G16B16A16_SFLOAT:
-      return AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT;
-   case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-      return AHARDWAREBUFFER_FORMAT_R10G10B10A2_UNORM;
    case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
 #ifdef HAVE_CROS_GRALLOC
       return AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420;
@@ -162,7 +141,7 @@ android_format_from_vk(unsigned vk_format)
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
 #endif
    default:
-      return AHARDWAREBUFFER_FORMAT_BLOB;
+      return vk_android_format_from_vk(vk_format);
    }
 }
 
@@ -193,7 +172,7 @@ get_ahw_buffer_format_properties(
    /* Fill properties fields based on description. */
    VkAndroidHardwareBufferFormatPropertiesANDROID *p = pProperties;
 
-   p->format = vk_format_from_android(desc.format, desc.usage);
+   p->format = anv_vk_format_from_android(desc.format, desc.usage);
 
    const struct anv_format *anv_format = anv_get_format(p->format);
    p->externalFormat = (uint64_t) (uintptr_t) anv_format;
@@ -410,7 +389,7 @@ anv_create_ahw_memory(VkDevice device_h,
       w = image->extent.width;
       h = image->extent.height;
       layers = image->array_size;
-      format = android_format_from_vk(image->vk_format);
+      format = anv_android_format_from_vk(image->vk_format);
       usage = anv_ahw_usage_from_vk_usage(image->create_flags, image->usage);
    } else if (dedicated_info && dedicated_info->buffer) {
       ANV_FROM_HANDLE(anv_buffer, buffer, dedicated_info->buffer);
