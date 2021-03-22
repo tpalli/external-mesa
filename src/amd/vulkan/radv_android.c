@@ -380,47 +380,6 @@ VkResult radv_GetSwapchainGrallocUsage2ANDROID(
 }
 
 VkResult
-radv_AcquireImageANDROID(
-      VkDevice            device,
-      VkImage             image_h,
-      int                 nativeFenceFd,
-      VkSemaphore         semaphore,
-      VkFence             fence)
-{
-	VkResult semaphore_result = VK_SUCCESS, fence_result = VK_SUCCESS;
-
-	if (semaphore != VK_NULL_HANDLE) {
-		int semaphore_fd = nativeFenceFd >= 0 ? os_dupfd_cloexec(nativeFenceFd) : nativeFenceFd;
-		semaphore_result = radv_ImportSemaphoreFdKHR(device,
-		                                             &(VkImportSemaphoreFdInfoKHR) {
-		                                                 .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
-		                                                 .flags = VK_SEMAPHORE_IMPORT_TEMPORARY_BIT,
-		                                                 .fd = semaphore_fd,
-		                                                 .semaphore = semaphore,
-		                                                 .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
-		                                            });
-	}
-
-	if (fence != VK_NULL_HANDLE) {
-		int fence_fd = nativeFenceFd >= 0 ? os_dupfd_cloexec(nativeFenceFd) : nativeFenceFd;
-		fence_result = radv_ImportFenceFdKHR(device,
-		                                     &(VkImportFenceFdInfoKHR) {
-		                                         .sType = VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR,
-		                                         .flags = VK_FENCE_IMPORT_TEMPORARY_BIT,
-		                                         .fd = fence_fd,
-		                                         .fence = fence,
-		                                         .handleType = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT,
-		                                     });
-	}
-
-	close(nativeFenceFd);
-
-	if (semaphore_result != VK_SUCCESS)
-		return semaphore_result;
-	return fence_result;
-}
-
-VkResult
 radv_QueueSignalReleaseImageANDROID(
       VkQueue             _queue,
       uint32_t            waitSemaphoreCount,
