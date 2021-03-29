@@ -12,8 +12,7 @@ COMMON_FILES = \
 	common/intel_aux_map.h \
 	common/intel_buffer_alloc.h \
 	common/intel_clflush.h \
-	common/intel_batch_decoder.c \
-	common/intel_decoder.c \
+	common/intel_batch_decoder_stub.c \
 	common/intel_decoder.h \
 	common/intel_disasm.c \
 	common/intel_disasm.h \

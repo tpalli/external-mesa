@@ -34,8 +34,7 @@ MESA_DRI_CFLAGS := \
 MESA_DRI_C_INCLUDES := \
 	$(addprefix $(MESA_TOP)/, $(mesa_dri_common_INCLUDES)) \
 	$(MESA_TOP)/src/gallium/include \
-	$(MESA_TOP)/src/gallium/auxiliary \
-	external/expat/lib
+	$(MESA_TOP)/src/gallium/auxiliary
 
 MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 	libmesa_glsl \
@@ -53,15 +52,6 @@ MESA_DRI_SHARED_LIBRARIES := \
 	liblog \
 	libsync \
 	libz
-
-# If Android version >=8 MESA should static link libexpat else should dynamic link
-ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
-MESA_DRI_WHOLE_STATIC_LIBRARIES += \
-	libexpat
-else
-MESA_DRI_SHARED_LIBRARIES += \
-	libexpat
-endif
 
 #-----------------------------------------------
 # Build drivers and libmesa_dri_common
