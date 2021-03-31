@@ -1183,10 +1183,9 @@ resolve_ahw_image(struct anv_device *device,
                                                 vk_tiling);
    assert(isl_fmt != ISL_FORMAT_UNSUPPORTED);
 
-   /* Handle RGB(X)->RGBA fallback. */
+   /* Handle RGB->RGBA fallback. */
    switch (desc.format) {
    case AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM:
-   case AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM:
       if (isl_format_is_rgb(isl_fmt))
          isl_fmt = isl_format_rgb_to_rgba(isl_fmt);
       break;
